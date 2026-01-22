@@ -38,8 +38,9 @@ app = FastAPI(title="Tienda Online API", debug=True)
 # 🌍 CORS
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "https://jhscristoenmi.vercel.app",
-    "https://jhscristoenmi.ocloudxx.lat"
+    "http://localhost:5174",
+    "https://distriaseo.vercel.app",
+    "https://distriaseo.ocloudxx.lat"
 ]
 
 app.add_middleware(
