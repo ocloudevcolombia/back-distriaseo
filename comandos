@@ -1,0 +1,17 @@
+source env/Scripts/activate
+
+uvicorn app.main:app --reload
+
+//-----------------------------------------//
+
+// Cada vez que cambies modelos:
+👇
+alembic revision --autogenerate -m "mi cambio"
+//Si es nueva bd borrar datos de la tabla alembic_version en Mysql y ejecuta el comando anterior.
+//luego
+👇
+alembic upgrade head
+
+// Mini chequeo rápido - Después de upgrade, corre: 
+👇
+<revision_id> (head)
