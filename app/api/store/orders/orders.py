@@ -19,17 +19,36 @@ def create_new_order(
     return create_order(db, order, user_id=current_user.id)
 
 @orders_router.get("/", response_model=List[OrderOut])
-def get_orders(db: Session = Depends(get_db)):
-    return get_all_orders(db)
+def get_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    if current_user.rol == "admin":
+        return get_all_orders(db)
+
+    return get_all_orders(db, user_id=current_user.id)
 
 @orders_router.get("/today", response_model=List[OrderOut])
-def get_orders_today_endpoint(db: Session = Depends(get_db)):
-    """Obtiene las órdenes del día actual + órdenes pendientes de todos los días"""
-    return get_orders_today(db)
+def get_orders_today_endpoint(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    if current_user.rol == "admin":
+        return get_orders_today(db)
+
+    return get_orders_today(db, user_id=current_user.id)
 
 @orders_router.get("/{order_id}", response_model=OrderOut)
-def get_order(order_id: int, db: Session = Depends(get_db)):
-    return get_order_by_id(db, order_id)
+def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    if current_user.rol == "admin":
+        return get_order_by_id(db, order_id)
+
+    return get_order_by_id(db, order_id, user_id=current_user.id)
+
 
 @orders_router.put("/{order_id}", response_model=OrderOut)
 def update_order_details(order_id: int, order_update: OrderUpdate, db: Session = Depends(get_db)):

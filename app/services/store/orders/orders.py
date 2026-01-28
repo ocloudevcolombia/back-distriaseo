@@ -43,55 +43,68 @@ def create_order(db: Session, order: OrderCreate, user_id: int = None):
 
 
 # Servicio para obtener todos los pedidos (Order)
-def get_all_orders(db: Session):
-    orders = db.query(Order).options(
+def get_all_orders(db: Session, user_id: int = None):
+    query = db.query(Order).options(
         joinedload(Order.items),
         joinedload(Order.customer),
         joinedload(Order.user)
-    ).all()
-    return orders
+    )
+
+    # Si no es admin, filtramos por usuario
+    if user_id is not None:
+        query = query.filter(Order.user_id == user_id)
+
+    return query.all()
 
 
 # Servicio para obtener las órdenes del día actual + órdenes pendientes de todos los días
-def get_orders_today(db: Session):
-    # Obtener la fecha actual en la zona horaria de Colombia
+def get_orders_today(db: Session, user_id: int = None):
     colombia_tz = pytz.timezone('America/Bogota')
     today = datetime.now(colombia_tz).date()
-    
-    # Crear el rango de fechas para el día actual (desde 00:00:00 hasta 23:59:59)
+
     start_of_day = colombia_tz.localize(datetime.combine(today, datetime.min.time()))
     end_of_day = colombia_tz.localize(datetime.combine(today, datetime.max.time()))
-    
-    # Consultar las órdenes del día actual + órdenes pendientes de todos los días
-    from sqlalchemy import or_
-    orders = db.query(Order).options(
+
+    from sqlalchemy import or_, and_
+
+    query = db.query(Order).options(
         joinedload(Order.items),
         joinedload(Order.customer),
         joinedload(Order.user)
     ).filter(
         or_(
-            # Órdenes del día actual (completadas o pendientes)
             (Order.date >= start_of_day) & (Order.date <= end_of_day),
-            # Órdenes pendientes de cualquier día
             Order.status == "pending"
         )
-    ).all()
-    
-    return orders
+    )
+
+    # Si no es admin, filtrar por usuario
+    if user_id is not None:
+        query = query.filter(Order.user_id == user_id)
+
+    return query.all()
 
 
 # Servicio para obtener un pedido específico (Order)
-def get_order_by_id(db: Session, order_id: int):
-    # Obtenemos el pedido por su ID
-    db_order = db.query(Order).options(
+def get_order_by_id(db: Session, order_id: int, user_id: int = None):
+    query = db.query(Order).options(
         joinedload(Order.items),
         joinedload(Order.customer),
         joinedload(Order.user)
-    ).filter(Order.id == order_id).first()
-    
+    ).filter(Order.id == order_id)
+
+    # Si no es admin, solo puede ver su orden
+    if user_id is not None:
+        query = query.filter(Order.user_id == user_id)
+
+    db_order = query.first()
+
     if not db_order:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found or access denied"
+        )
+
     return db_order
 
 # Servicio para actualizar un pedido (Order)
