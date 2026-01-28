@@ -62,13 +62,25 @@ def _calculate_returns(db: Session, day: date) -> Decimal:
     returns = get_total_returns_by_date(db=db, return_date=day)
     return Decimal(str(returns)) if returns is not None else Decimal("0.00")
 
-def earnings_by_date_range(db: Session, start_date: date, end_date: date) -> Dict[str, Any]:
-    sales = db.query(Sale).options(
-    joinedload(Sale.order).joinedload(Order.items)
+def earnings_by_date_range(
+    db: Session,
+    start_date: date,
+    end_date: date,
+    user_id: int = None
+) -> Dict[str, Any]:
+
+    query = db.query(Sale).options(
+        joinedload(Sale.order).joinedload(Order.items)
     ).filter(
         func.date(Sale.date) >= start_date,
         func.date(Sale.date) <= end_date
-    ).order_by(Sale.date).all()
+    )
+
+    # Filtro por usuario si se envía
+    if user_id:
+        query = query.join(Sale.order).filter(Order.user_id == user_id)
+
+    sales = query.order_by(Sale.date).all()
         
     earnings_by_product = {}
     daily_breakdown = {}
@@ -76,8 +88,17 @@ def earnings_by_date_range(db: Session, start_date: date, end_date: date) -> Dic
     total_losses_period = Decimal("0.00")
     total_returns_period = Decimal("0.00")
 
-    product_ids = {item.product_id for sale in sales for item in (sale.order.items if sale.order else [])}
-    products = db.query(Product).filter(Product.id.in_(product_ids)).all() if product_ids else []
+    product_ids = {
+        item.product_id
+        for sale in sales
+        for item in (sale.order.items if sale.order else [])
+    }
+
+    products = (
+        db.query(Product).filter(Product.id.in_(product_ids)).all()
+        if product_ids else []
+    )
+
     product_dict = {product.id: product for product in products}
 
     for sale in sales:
@@ -108,13 +129,25 @@ def earnings_by_date_range(db: Session, start_date: date, end_date: date) -> Dic
                     "real_unit_price": float(e["real_unit_price"]),
                     "expected_unit_price": float(e["expected_unit_price"]),
                     "purchase_price": float(e["purchase_price"]),
-                    "total_actual_profit": float(e["total_actual_profit"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-                    "loss": float(e["loss_amount"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+                    "total_actual_profit": float(
+                        e["total_actual_profit"].quantize(
+                            Decimal("0.01"), rounding=ROUND_HALF_UP
+                        )
+                    ),
+                    "loss": float(
+                        e["loss_amount"].quantize(
+                            Decimal("0.01"), rounding=ROUND_HALF_UP
+                        )
+                    )
                 }
             else:
                 daily_breakdown[sale_date]["earnings_by_product"][pid]["quantity_sold"] += float(e["quantity"])
-                daily_breakdown[sale_date]["earnings_by_product"][pid]["total_actual_profit"] += float(e["total_actual_profit"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-                daily_breakdown[sale_date]["earnings_by_product"][pid]["loss"] += float(e["loss_amount"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+                daily_breakdown[sale_date]["earnings_by_product"][pid]["total_actual_profit"] += float(
+                    e["total_actual_profit"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                )
+                daily_breakdown[sale_date]["earnings_by_product"][pid]["loss"] += float(
+                    e["loss_amount"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                )
             
             daily_breakdown[sale_date]["total_profit_day"] += e["total_actual_profit"]
             daily_breakdown[sale_date]["total_losses_day"] += e["loss_amount"]
@@ -123,18 +156,25 @@ def earnings_by_date_range(db: Session, start_date: date, end_date: date) -> Dic
             returns = _calculate_returns(db, sale_date)
             daily_breakdown[sale_date]["total_returns_day"] = returns
             daily_breakdown[sale_date]["returns_calculated"] = True
-            daily_breakdown[sale_date]["net_profit_day"] = daily_breakdown[sale_date]["total_profit_day"] - daily_breakdown[sale_date]["total_losses_day"] - returns
+            daily_breakdown[sale_date]["net_profit_day"] = (
+                daily_breakdown[sale_date]["total_profit_day"]
+                - daily_breakdown[sale_date]["total_losses_day"]
+                - returns
+            )
     
     for day_data in daily_breakdown.values():
         total_profit_period += day_data["total_profit_day"]
         total_losses_period += day_data["total_losses_day"]
         total_returns_period += day_data["total_returns_day"]
     
-    net_profit_after_returns = total_profit_period - total_losses_period - total_returns_period
+    net_profit_after_returns = (
+        total_profit_period
+        - total_losses_period
+        - total_returns_period
+    )
     
     for day_data in daily_breakdown.values():
         for pid, product_data in day_data["earnings_by_product"].items():
-            product = product_dict.get(pid)
             if pid not in earnings_by_product:
                 earnings_by_product[pid] = {
                     "product_name": product_data["product_name"],
@@ -150,19 +190,35 @@ def earnings_by_date_range(db: Session, start_date: date, end_date: date) -> Dic
         "daily_breakdown": {
             str(day): {
                 "earnings_by_product": day_data["earnings_by_product"],
-                "total_profit_day": float(day_data["total_profit_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-                "total_losses_day": float(day_data["total_losses_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-                "total_returns_day": float(day_data["total_returns_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-                "net_profit_day": float(day_data["net_profit_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+                "total_profit_day": float(
+                    day_data["total_profit_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                ),
+                "total_losses_day": float(
+                    day_data["total_losses_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                ),
+                "total_returns_day": float(
+                    day_data["total_returns_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                ),
+                "net_profit_day": float(
+                    day_data["net_profit_day"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                )
             }
             for day, day_data in sorted(daily_breakdown.items())
         },
         "summary": {
             "earnings_by_product": earnings_by_product,
-            "total_profit_period": float(total_profit_period.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-            "total_losses_period": float(total_losses_period.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-            "total_returns_period": float(total_returns_period.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-            "net_profit_after_returns": float(net_profit_after_returns.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+            "total_profit_period": float(
+                total_profit_period.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            ),
+            "total_losses_period": float(
+                total_losses_period.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            ),
+            "total_returns_period": float(
+                total_returns_period.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            ),
+            "net_profit_after_returns": float(
+                net_profit_after_returns.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            ),
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "days_with_sales": len(daily_breakdown)

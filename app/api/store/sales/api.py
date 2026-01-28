@@ -79,18 +79,27 @@ def get_sales_for_day(day: date, db: Session = Depends(get_db)):
     sales = sales_for_day(db, day)
     return [SaleOut.model_validate(s) for s in sales]
 
+# ------------------ Rango de Fechas y Ganancias con Seguridad ------------------
 @sales_router.get("/range/earnings/")
 def get_earnings_by_date_range(
-    start_date: date, 
-    end_date: date, 
-    db: Session = Depends(get_db)
+    start_date: date,
+    end_date: date,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
     if start_date > end_date:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="La fecha de inicio no puede ser posterior a la fecha de fin"
         )
-    return earnings_by_date_range(db, start_date, end_date)
+
+    # Seguridad:
+    # Si NO es admin, ignoramos cualquier user_id y forzamos el suyo
+    if current_user.rol != "admin":
+        user_id = current_user.id
+
+    return earnings_by_date_range(db, start_date, end_date, user_id)
 
 # ------------------ Métricas por Día ------------------
 
