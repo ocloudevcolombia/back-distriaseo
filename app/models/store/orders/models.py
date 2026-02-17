@@ -31,6 +31,7 @@ class OrderItem(Base):
     quantity = Column(Numeric(7,3), nullable=False)
     price_unit = Column(Float, nullable=False)
     subtotal = Column(Float, nullable=False)
+    observaciones = Column(String(255), nullable=True)
 
     # Relaciones
     order = relationship("Order", back_populates="items")  # Relación con Order

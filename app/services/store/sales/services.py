@@ -332,7 +332,7 @@ def create_sale(db: Session, sale_data: SaleCreate, user_id: int = None) -> Sale
         order_id=order.id,
         total=float(total),
         transfer_payment=float(transfer_payment),
-        balance=float(balance)
+        balance=float(balance),
     )
     
     db.add(sale)

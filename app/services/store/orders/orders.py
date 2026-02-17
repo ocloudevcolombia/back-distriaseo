@@ -18,7 +18,8 @@ def create_order(db: Session, order: OrderCreate, user_id: int = None):
             product_id=item.product_id,
             quantity=item.quantity,
             price_unit=item.price_unit,
-            subtotal=subtotal
+            subtotal=subtotal,
+            observaciones=item.observaciones,
         )
         order_items.append(order_item)
 
@@ -130,6 +131,7 @@ def update_order(db: Session, order_id: int, order_update: OrderUpdate):
                 quantity=item.quantity,
                 price_unit=item.price_unit,
                 subtotal=subtotal,
+                observaciones=item.observaciones,
                 order_id=db_order.id
             )
             db.add(order_item)
@@ -166,6 +168,7 @@ def patch_order(db: Session, order_id: int, order_patch: OrderUpdate):
                 quantity=item.quantity,
                 price_unit=item.price_unit,
                 subtotal=subtotal,
+                observaciones=item.observaciones,
                 order_id=db_order.id
             )
             db.add(order_item)

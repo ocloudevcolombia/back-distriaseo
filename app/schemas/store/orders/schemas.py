@@ -11,6 +11,7 @@ class OrderItemCreate(BaseModel):
     product_id: int
     quantity: Decimal = Field(max_digits=7, decimal_places=3)
     price_unit: float
+    observaciones: Optional[str] = None
 
     class Config:
         from_attributes = True  # Esto permite que Pydantic use los datos del modelo ORM (SQLAlchemy)
@@ -19,6 +20,7 @@ class OrderItemUpdate(BaseModel):
     product_id: Optional[int]
     quantity: Decimal = Field(max_digits=7, decimal_places=3)
     price_unit: Optional[float]
+    observaciones: Optional[str] = None
 
 # Esquema para Item del Pedido (OrderItem) en la respuesta
 class OrderItemOut(OrderItemCreate):
