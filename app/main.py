@@ -40,7 +40,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:5174",
     "https://distriaseo.vercel.app",
-    "https://distriaseo.ocloudxx.lat"
+    "https://distriaseo.ocloudev.lat"
 ]
 
 app.add_middleware(
